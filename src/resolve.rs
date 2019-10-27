@@ -12,7 +12,7 @@ use semver::Version;
 use serde_derive::Deserialize;
 use serde_derive::Serialize;
 use serde_json::to_string_pretty;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::convert::Into;
 use std::path::{Path, PathBuf};
 
@@ -44,6 +44,8 @@ pub struct CrateDerivation {
     pub proc_macro: bool,
     // This derivation builds the root crate or a workspace member.
     pub is_root_or_workspace_member: bool,
+    /// Which kind of library to build
+    pub crate_type: Vec<String>,
 }
 
 impl CrateDerivation {
@@ -95,6 +97,25 @@ impl CrateDerivation {
             .chain(metadata.workspace_members.iter())
             .any(|pkg_id| *pkg_id == package.id);
 
+        // The type field buildRustCrate is only used for build phase of libraries, we shouldn't
+        // propagate bin etc.
+        let allowed_types: HashSet<&str> =
+            ["dylib", "staticlib", "cdylib", "lib"]
+                .iter()
+                .cloned()
+                .collect();
+        // all types from all the targets, collect as a HashSet so they're unique
+        let crate_type = package
+            .targets
+            .iter()
+            .flat_map(|t| {
+                t.crate_types
+                    .iter()
+                    .flat_map(|ty| allowed_types.get::<str>(ty).map(|x| *x))
+            })
+            .collect::<std::collections::HashSet<&str>>();
+        let crate_type = crate_type.iter().map(|x| x.to_string()).collect();
+
         Ok(CrateDerivation {
             crate_name: package.name.clone(),
             edition: package.edition.clone(),
@@ -119,6 +140,7 @@ impl CrateDerivation {
             proc_macro,
             has_bin,
             is_root_or_workspace_member,
+            crate_type,
         })
     }
 }

@@ -190,6 +190,9 @@ rec {
         {%- if crate.resolved_default_features|length > 0 %}
         resolvedDefaultFeatures = [ {% for feature in crate.resolved_default_features %}{{feature}} {% endfor %}];
         {%- endif %}
+        {%- if crate.crate_type|length > 0 %}
+        type = [ {% for type in crate.crate_type %}{{type}} {% endfor %}];
+        {%- endif %}
       };
   {%- endfor %}
   };
